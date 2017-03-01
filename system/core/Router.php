@@ -202,4 +202,91 @@ class CI_Router
 
         log_message('debug', 'the default controller is set');
     }
+
+    /**
+     * 匹配路由
+     * 主要是跟配置文件里面的配置选项匹配
+     */
+    public function _parse_routes()
+    {
+        $uri = implode('/', $this->uri->segments);
+
+        //请求方法
+        $http_verb = isset($_SERVER['REQUEST_METHOD']) ? strtolower($_SERVER['REQUEST_METHOD']) : 'cli';
+
+        //循环配置的东西匹配
+        foreach ($this->routes as $key => $val) {
+            //查看是否是get post put 等方法
+            if (is_array($val)) {
+                $val = array_change_key_case($val, CASE_LOWER);
+                if (isset($val[$http_verb])) {
+                    $val = $val[$http_verb];
+                } else {
+                    continue;
+                }
+            }
+
+            //匹配
+            $key = str_replace(array(':nay', ':num'), array('[^/]', '[0-9]'), $key);
+
+            //
+            if (preg_match('#'.$key.'#', $uri, $matches)) {
+                //是否使用了回掉函数
+                if (!is_string($matches) && is_callable($val)) {
+                    array_shift($matches);
+                    $val = call_user_func_array($val, $matches);
+                } elseif (strpos($val, '$') !== false && strpos($key, '(') !== false) {
+                    $val = preg_replace('#^' . $key . '$#', $val, $uri);
+                }
+                $this->_set_request(explode('/', $val));
+                return ;
+            }
+
+            $this->_set_request(explode('/', $val));
+            return ;
+        }
+    }
+
+    /**
+     * 设置类名
+     * @param string $class 类名
+     * @return void
+     */
+    public function set_class($class)
+    {
+        $this->class = str_replace(array('/', '.'), '', $class);
+    }
+
+    /**
+     * 导出当前方法
+     * @deprecated
+     * @return string
+     */
+    public function fetch_class()
+    {
+        return $this->class;
+    }
+
+    /**
+     * 设置当前方法
+     * @param string $method
+     */
+    public function set_method($method)
+    {
+        $this->method = $method;
+    }
+
+    /**
+     * 设置文件夹
+     * @param string $dir 文件夹
+     * @param bool
+     */
+    public function set_directory($dir, $append = false)
+    {
+        if ($append == true or empty($this->directory)) {
+            $this->directory = str_replace('.', '', trim($dir, '/')) . '/';
+        } else {
+            $this->directory .= str_replace('.', '', trim($dir, '/')) . '/';
+        }
+    }
 }
